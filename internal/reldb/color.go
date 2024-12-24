@@ -62,7 +62,7 @@ func (m *Model) ProductColors(iProdID uint32) ([]ProductColor, error) {
 				pc.cColorDefault,
 				pc.cStatus
 			FROM
-				product_colors pc
+				product_color pc
 			JOIN color c ON
 				pc.iColorID = c.iColorID
 			WHERE
@@ -143,7 +143,7 @@ func (m *Model) ProductColorAttributes(iProdID uint32) ([]ProductColorAttribute,
 				pa.cDefault,
 				pa.cStock
 			FROM
-				product_colors pc
+				product_color pc
 			JOIN product_attrib pa ON
 				(pa.iPCID = pc.iPCID AND pa.iProdID = pc.iProdID)
 			JOIN color c ON
