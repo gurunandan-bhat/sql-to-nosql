@@ -24,10 +24,6 @@ var productCmd = &cobra.Command{
 		}
 		fmt.Println("product called with product id", iProdID)
 
-		// if iProdID == 0 {
-		// 	return nil
-		// }
-
 		cfg, err := reldb.Configuration()
 		if err != nil {
 			return fmt.Errorf("error fetching configuration: %s", err)
@@ -38,52 +34,59 @@ var productCmd = &cobra.Command{
 			return fmt.Errorf("error connecting to database: %s", err)
 		}
 
-		// products, err := relDBH.Products()
-		// if err != nil {
-		// 	return err
-		// }
-
-		prodAttribs, err := relDBH.ProductAttributes(iProdID)
+		showProducts, err := cmd.Flags().GetBool("show-products")
 		if err != nil {
-			return fmt.Errorf("error fetching product attributes for product %d: %s", iProdID, err)
+			return fmt.Errorf("error parsing show-products: %s", err)
+		}
+		if showProducts {
+			products, err := relDBH.Products()
+			if err != nil {
+				return err
+			}
+			jsonProducts, err := json.MarshalIndent(&products, "", "\t")
+			if err != nil {
+				return fmt.Errorf("error marshalling products: %s", err)
+			}
+			fmt.Println("Products: ", string(jsonProducts))
+			return nil
 		}
 
-		// prodColors, err := relDBH.ProductColors(iProdID)
-		// if err != nil {
-		// 	return fmt.Errorf("error fetching product colors for product %d: %s", iProdID, err)
-		// }
-
-		// prodColorAttribs, err := relDBH.ProductColorAttributes(iProdID)
-		// if err != nil {
-		// 	return fmt.Errorf("error fetching color attributes for product %d: %s", iProdID, err)
-		// }
-
-		// jsonProducts, err := json.MarshalIndent(&products, "", "\t")
-		// if err != nil {
-		// 	return fmt.Errorf("error marshalling products: %s", err)
-		// }
-
-		jsonBytesAttribs, err := json.MarshalIndent(&prodAttribs, "", "\t")
+		showAttribs, err := cmd.Flags().GetBool("show-attributes")
 		if err != nil {
-			return fmt.Errorf("error marshalling product attributes: %s", err)
+			return fmt.Errorf("error parsing show-attributes option: %s", err)
+		}
+		if showAttribs {
+			prodAttribs, err := relDBH.ProductAttributes(iProdID)
+			if err != nil {
+				return fmt.Errorf("error fetching product attributes for product %d: %s", iProdID, err)
+			}
+			jsonBytesAttribs, err := json.MarshalIndent(&prodAttribs, "", "\t")
+			if err != nil {
+				return fmt.Errorf("error marshalling product attributes: %s", err)
+			}
+			fmt.Println(
+				"Attributes: ", string(jsonBytesAttribs),
+			)
 		}
 
-		// jsonBytesColors, err := json.MarshalIndent(&prodColors, "", "\t")
-		// if err != nil {
-		// 	return fmt.Errorf("error marshalling product colors: %s", err)
-		// }
+		showColors, err := cmd.Flags().GetBool("show-colors")
+		if err != nil {
+			return fmt.Errorf("error parsing show-colors option: %s", err)
+		}
 
-		// jsonBytesColorAttribs, err := json.MarshalIndent(&prodColorAttribs, "", "\t")
-		// if err != nil {
-		// 	return fmt.Errorf("error marshalling product attributes: %s", err)
-		// }
-
-		fmt.Println(
-			// "Products: ", string(jsonProducts),
-			"\nAttributes: ", string(jsonBytesAttribs),
-			// "\nColors: ", string(jsonBytesColors),
-			// "\nColor Attributes: ", string(jsonBytesColorAttribs),
-		)
+		if showColors {
+			prodColorAttribs, err := relDBH.ProductColorAttributes(iProdID)
+			if err != nil {
+				return fmt.Errorf("error fetching color attributes for product %d: %s", iProdID, err)
+			}
+			jsonBytesColorAttribs, err := json.MarshalIndent(&prodColorAttribs, "", "\t")
+			if err != nil {
+				return fmt.Errorf("error marshalling product attributes: %s", err)
+			}
+			fmt.Println(
+				"Color Attributes: ", string(jsonBytesColorAttribs),
+			)
+		}
 
 		return nil
 	},
@@ -102,4 +105,7 @@ func init() {
 	// is called directly, e.g.:
 	// productCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	productCmd.Flags().Uint32P("iProdID", "i", 0, "Display attributes of product with <id>")
+	productCmd.Flags().BoolP("show-products", "p", false, "Dump products")
+	productCmd.Flags().BoolP("show-attributes", "a", false, "Dump attributes")
+	productCmd.Flags().BoolP("show-colors", "c", false, "Dump color attributes")
 }
