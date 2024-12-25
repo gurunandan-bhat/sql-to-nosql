@@ -1,13 +1,7 @@
 package reldb
 
 import (
-	"errors"
 	"fmt"
-	"reflect"
-	"strings"
-
-	"github.com/iancoleman/strcase"
-	"github.com/r3labs/diff/v3"
 )
 
 type Product struct {
@@ -38,300 +32,203 @@ type ProductStatus struct {
 	CStatus *string `json:"cStatus,omitempty"`
 }
 
-func (m *Model) ProductByID(iProdID uint32) (Product, error) {
-	if iProdID == 0 {
-		return Product{}, errors.New("invalid product id")
-	}
-
-	query := `SELECT
-					iProdID,
-					iPCatID,
-					cCode,
-					vName,
-					vUrlName,
-					vShortDesc,
-					vDescription,
-					fRetailPrice,
-					fRetailOPrice,
-					fShipping,
-					fPrice,
-					fOPrice,
-					fActualWeight,
-					fVolumetricWeight,
-					vSmallImage,
-					vSmallImage_AltTag,
-					vImage,
-					vImage_AltTag,
-					cStatus,
-					vYTID
-				FROM product
-				WHERE iProdID = ?
-				ORDER BY
-					cStatus,
-					vName`
-
-	var product Product
-
-	if err := m.QueryRowx(query, iProdID).StructScan(&product); err != nil {
-		return Product{}, fmt.Errorf("error retrieving product %d: %w", iProdID, err)
-	}
-
-	return product, nil
+type Color struct {
+	IColorID uint32 `db:"iColorID" json:"iColorID"`
+	VName    string `db:"vName" json:"vName"`
+	VColor   string `db:"vColor" json:"vColor"`
+	IRank    int64  `db:"iRank" json:"iRank"`
+	CStatus  string `db:"cStatus" json:"cStatus"`
 }
 
-func (m *Model) ProductsByCategoryID(constraint string, categoryID int32) ([]Product, error) {
+type ProductAttribute struct {
+	IProdAttribID uint32  `db:"iProdAttribID" json:"iProdAttribID" diff:"iProdAttribID"`
+	IProdID       uint32  `db:"iProdID" json:"iProdID" diff:"iProdID"`
+	IAttribID     uint32  `db:"iAttribID" json:"iAttribID" diff:"iAttribID"`
+	VAttribName   *string `db:"vAttribName" json:"vAttribName" diff:"-"`
+	VValue        *string `db:"vValue" json:"vValue" diff:"vValue"`
+	IPCID         uint32  `db:"iAttribPCID" json:"iAttribPCID" diff:"iPCID"`
+	FRetailPrice  float64 `db:"fRetailPrice" json:"fRetailPrice" diff:"fRetailPrice"`
+	FRetailOPrice float64 `db:"fRetailOPrice" json:"fRetailOPrice" diff:"fRetailOPrice"`
+	FPrice        float64 `db:"fPrice" json:"fPrice" diff:"fPrice"`
+	FOPrice       float64 `db:"fOPrice" json:"fOPrice" diff:"fOPrice"`
+	CDefault      *string `db:"cDefault" json:"cDefault" diff:"cDefault"`
+	CStock        *string `db:"cStock" json:"cStock" diff:"cStock"`
+}
 
-	var qry_constraint string
-	if constraint == "inactive" {
-		qry_constraint = " AND cStatus = 'I' "
+type ProductColor struct {
+	IPCID              uint32  `json:"iPCID" db:"iPCID"`
+	IProdID            uint32  `json:"iColorProdID" db:"iColorProdID"`
+	IColorID           uint32  `json:"iColorID" db:"iColorID"`
+	VColorName         *string `json:"vColorName" db:"vColorName" diff:"-"`
+	FColorRetailPrice  float64 `json:"fColorRetailPrice" db:"fColorRetailPrice"`
+	FColorRetailOPrice float64 `json:"fColorRetailOPrice" db:"fColorRetailOPrice"`
+	FColorPrice        float64 `json:"fColorPrice" db:"fColorPrice"`
+	FColorOPrice       float64 `json:"fColorOPrice" db:"fColorOPrice"`
+	CColorDefault      *string `json:"cColorDefault" db:"cColorDefault"`
+	CStatus            *string `json:"cStatus" db:"cStatus"`
+}
+
+type ProductColorAttribute struct {
+	ProductColor
+	ProductAttributes []ProductAttribute `json:"productAttributes"`
+}
+
+type dbPCARow struct {
+	ProductColor
+	ProductAttribute
+}
+
+func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
+
+	if iProdID == 0 {
+		return nil, nil
 	}
-	query := `SELECT
-			iProdID,
-			iPCatID,
-			cCode,
-			vName,
-			vUrlName,
-			vShortDesc,
-			vDescription,
-			fPrice,
-			fOPrice,
-			fActualWeight,
-			fVolumetricWeight,
-			vSmallImage,
-			vSmallImage_AltTag,
-			vImage,
-			vImage_AltTag,
-			cStatus,
-			vYTID
-		FROM product
-		WHERE iPCatID = ?` + qry_constraint +
-		` ORDER BY
-			cStatus,
-			vName`
 
-	rows, err := m.Queryx(query, categoryID)
-	if err != nil {
+	var productAttribs []ProductAttribute
+	query := `SELECT
+			    pa.iProdAttribID,
+				pa.iProdID,
+				pa.iAttribID,
+    			a.vName as vAttribName,
+				pa.vValue,
+				pa.iPCID iAttribPCID,
+				pa.fRetailPrice,
+				pa.fRetailOPrice,
+				pa.fPrice,
+				pa.fOPrice,
+				pa.cDefault,
+				pa.cStock
+			FROM
+    			product_attrib pa
+			JOIN attribute a
+			ON pa.iAttribID = a.iAttribID
+			WHERE
+    			iProdID = ? AND
+    			NOT (vValue = '' AND fPrice = 0) AND
+    			iPCID = 0
+			ORDER BY pa.iProdAttribID`
+
+	if err := m.Select(&productAttribs, query, iProdID); err != nil {
+		fmt.Printf("\n\nerror fetching product attributes: %s\n\n", err)
 		return nil, err
 	}
-	defer rows.Close()
 
-	var products []Product
-	for rows.Next() {
-		var p Product
-		if err := rows.StructScan(&p); err != nil {
-			return nil, err
+	return productAttribs, nil
+}
+
+func (m *Model) ProductColors(iProdID uint32) ([]ProductColor, error) {
+
+	query := `SELECT
+				pc.iPCID,
+				pc.iProdID iColorProdID,
+				pc.iColorID,
+				c.vName vColorName,
+				pc.fColorRetailPrice,
+				pc.fColorRetailOPrice,
+				pc.fColorPrice,
+				pc.fColorOPrice,
+				pc.cColorDefault,
+				pc.cStatus
+			FROM
+				product_color pc
+			JOIN color c ON
+				pc.iColorID = c.iColorID
+			WHERE
+				pc.iProdID = ? AND 
+				pc.iPCID NOT IN (SELECT iPCID FROM product_attrib where iProdID = ?)
+			ORDER BY
+				pc.iColorID`
+
+	pcRows := []ProductColor{}
+
+	// Tell and exit if no rows found
+	if err := m.Select(&pcRows, query, iProdID, iProdID); err != nil {
+		return pcRows, fmt.Errorf("error scanning rows: %w", err)
+	}
+
+	return pcRows, nil
+}
+
+func (m *Model) ProductColorAttributes(iProdID uint32) ([]ProductColorAttribute, error) {
+
+	query := `SELECT
+				pc.iPCID,
+				pc.iProdID iColorProdID,
+				pc.iColorID,
+				c.vName vColorName,
+				pc.fColorRetailPrice,
+				pc.fColorRetailOPrice,
+				pc.fColorPrice,
+				pc.fColorOPrice,
+				pc.cColorDefault,
+				pc.cStatus,
+				pa.iProdAttribID,
+				pa.iProdID,
+				pa.iAttribID,
+				a.vName vAttribName,
+				pa.vValue vValue,
+				pa.iPCID iAttribPCID,
+				pa.fRetailPrice,
+				pa.fRetailOPrice,
+				pa.fPrice,
+				pa.fOPrice,
+				pa.cDefault,
+				pa.cStock
+			FROM
+				product_color pc
+			JOIN color c ON
+				pc.iColorID = c.iColorID
+			JOIN product_attrib pa ON
+				(pa.iPCID = pc.iPCID AND pa.iProdID = pc.iProdID)
+			JOIN attribute a ON
+				pa.iAttribID = a.iAttribID
+			WHERE
+				pc.iProdID = ?
+			ORDER BY
+				pc.iColorID,
+				pa.iProdAttribID`
+
+	pcRows := []dbPCARow{}
+
+	// Tell and exit if no rows found
+	cas := []ProductColorAttribute{}
+	if err := m.Select(&pcRows, query, iProdID); err != nil {
+		return cas, fmt.Errorf("error scanning rows: %w", err)
+	}
+
+	if len(pcRows) == 0 {
+		return cas, nil
+	}
+
+	var lastPCID uint32 = 0
+	for _, pcRow := range pcRows {
+		cas = addProductColorAttribute(cas, lastPCID, pcRow)
+		lastPCID = pcRow.ProductColor.IPCID
+	}
+
+	return cas, nil
+}
+
+func addProductColorAttribute(cas []ProductColorAttribute, lastPCID uint32, pcRow dbPCARow) []ProductColorAttribute {
+
+	if lastPCID != pcRow.ProductColor.IPCID {
+		// We have a new color
+		pAttribs := make([]ProductAttribute, 0)
+		if pcRow.IProdAttribID > 0 {
+			pAttribs = append(pAttribs, pcRow.ProductAttribute)
 		}
-		products = append(products, p)
+		cas = append(cas, ProductColorAttribute{
+			ProductColor:      pcRow.ProductColor,
+			ProductAttributes: pAttribs,
+		})
+
+		return cas
 	}
 
-	return products, nil
-}
+	// The color has not changed so just add the new attribute to the existing
+	// attributes slice
+	idx := len(cas) - 1
+	cas[idx].ProductAttributes = append(cas[idx].ProductAttributes, pcRow.ProductAttribute)
 
-func (m *Model) CreateProduct(newProduct Product) (uint32, error) {
-
-	differ, _ := diff.NewDiffer(diff.SliceOrdering(true))
-	changes, err := differ.Diff(Product{}, newProduct)
-	if err != nil {
-		return 0, fmt.Errorf("error generating diff for product: %w", err)
-	}
-
-	toCreateValues := make([]any, len(changes))
-	toCreateCols := make([]string, len(changes))
-	toBind := make([]string, len(changes))
-
-	tPS := reflect.TypeOf(Product{})
-	for i, c := range changes {
-
-		fieldName := c.Path[0]
-		f, hasField := tPS.FieldByName(fieldName)
-		if !hasField {
-			err := fmt.Errorf("field %s not found", fieldName)
-			return 0, err
-		}
-
-		colName, _ := f.Tag.Lookup("db")
-		toCreateCols[i] = colName
-		toCreateValues[i] = c.To
-		toBind[i] = "?"
-	}
-
-	// We always generate and add the URL for a product
-	// so there is no need to add vUrlName.
-
-	query := fmt.Sprintf("INSERT INTO product (%s) VALUES (%s)",
-		strings.Join(toCreateCols, ", "),
-		strings.Join(toBind, ", "),
-	)
-
-	result, err := m.Exec(query, toCreateValues...)
-	if err != nil {
-		return 0, err
-	}
-
-	insertedID, err := result.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	return uint32(insertedID), nil
-}
-
-func (m *Model) UpdateProduct(newProduct Product) (int64, error) {
-
-	iProdID := newProduct.IProdID
-	if iProdID == 0 {
-		return 0, fmt.Errorf("no product ID available to update")
-	}
-	product, err := m.ProductByID(iProdID)
-	if err != nil {
-		return 0, fmt.Errorf("error fetching product by ID %d: %w", iProdID, err)
-	}
-
-	differ, _ := diff.NewDiffer(diff.SliceOrdering(true))
-	changes, err := differ.Diff(product, newProduct)
-	if err != nil {
-		return 0, fmt.Errorf("error generating diff: %w", err)
-	}
-	if len(changes) == 0 {
-		return int64(iProdID), nil
-	}
-
-	toUpdateValues := make([]any, len(changes)+1)
-	toUpdateCols := make([]string, len(changes))
-
-	tPS := reflect.TypeOf(Product{})
-	for i, c := range changes {
-		fieldName := c.Path[0]
-		f, _ := tPS.FieldByName(fieldName)
-		colName, _ := f.Tag.Lookup("db")
-		colValue := c.To
-
-		toUpdateValues[i] = colValue
-		toUpdateCols[i] = fmt.Sprintf("%s = ?", colName)
-	}
-
-	// Check if shipping has changed and if yes,
-	// update fPrices and fOPrices in product_attrib
-	// and product_color_assoc
-
-	sChange := changes.Filter([]string{"FShipping"})
-	if len(sChange) > 0 {
-		newShipping, ok := (sChange[0].To).(float64)
-		if !ok {
-			return 0, errors.New("detected shipping change but could not determine value")
-		}
-		if err := m.updateAttribPrices(iProdID, newShipping); err != nil {
-			return 0, fmt.Errorf("error updating attribute prices due to changed shipping cost: %w", err)
-		}
-	}
-
-	query := `UPDATE product SET ` +
-		strings.Join(toUpdateCols, ", ") +
-		` WHERE iProdID = ?`
-
-	toUpdateValues[len(changes)] = iProdID
-
-	result, err := m.Exec(query, toUpdateValues...)
-	if err != nil {
-		return 0, err
-	}
-
-	count, err := result.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
-func (m *Model) updateAttribPrices(iProdID uint32, shipping float64) error {
-
-	qryP := `UPDATE product_attrib
-				SET fPrice = fRetailPrice + ?
-			WHERE fRetailPrice > 0 AND iProdID = ?`
-	_, err := m.Exec(qryP, shipping, iProdID)
-	if err != nil {
-		return err
-	}
-
-	qryOP := `UPDATE product_attrib
-				SET fOPrice = fRetailOPrice + ?
-			WHERE fRetailOPrice > 0 AND iProdID = ?`
-
-	_, err = m.Exec(qryOP, shipping, iProdID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *Model) MakeUrlName(name, table string) (string, error) {
-
-	urlName := strcase.ToSnake(name)
-
-	found := false
-	url := urlName
-	postfix := 0
-	maxTries := 100
-	for !found {
-
-		exists, err := m.hasUrlName(url, table)
-		if !exists || (err != nil) {
-			return url, err
-		}
-
-		found = false
-		postfix++
-		url = fmt.Sprintf("%s_%d", urlName, postfix)
-
-		if postfix >= maxTries {
-			break
-		}
-	}
-
-	return "", errors.New("urlName: Max tries exceeded")
-}
-
-func (m *Model) hasUrlName(name, table string) (bool, error) {
-
-	var count int
-	query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE vUrlName = ?", table)
-	if err := m.QueryRowx(query, name).Scan(&count); err != nil {
-		return true, err
-	}
-
-	return count > 0, nil
-
-}
-
-func (m *Model) UpdateProductStatus(status ProductStatus) (int64, error) {
-
-	query := `UPDATE product SET cStatus = ? WHERE iProdID = ?`
-	result, err := m.Exec(query, status.CStatus, status.IProdID)
-	if err != nil {
-		return 0, err
-	}
-
-	updated, err := result.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-
-	return updated, nil
-}
-
-func (m *Model) DeleteProduct(iProdID int32) (int64, error) {
-
-	deleteQry := `DELETE FROM product WHERE iProdId = ?`
-	result, err := m.Exec(deleteQry, iProdID)
-	if err != nil {
-		return 0, err
-	}
-
-	deleted, err := result.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-
-	return deleted, nil
+	return cas
 }

@@ -43,12 +43,36 @@ var productCmd = &cobra.Command{
 			return fmt.Errorf("error fetching product attributes for product %d: %s", iProdID, err)
 		}
 
-		jsonBytes, err := json.MarshalIndent(&prodAttribs, "", "\t")
+		prodColors, err := relDBH.ProductColors(iProdID)
+		if err != nil {
+			return fmt.Errorf("error fetching product colors for product %d: %s", iProdID, err)
+		}
+
+		prodColorAttribs, err := relDBH.ProductColorAttributes(iProdID)
+		if err != nil {
+			return fmt.Errorf("error fetching color attributes for product %d: %s", iProdID, err)
+		}
+
+		jsonBytesAttribs, err := json.MarshalIndent(&prodAttribs, "", "\t")
 		if err != nil {
 			return fmt.Errorf("error marshalling product attributes: %s", err)
 		}
 
-		fmt.Println(string(jsonBytes))
+		jsonBytesColors, err := json.MarshalIndent(&prodColors, "", "\t")
+		if err != nil {
+			return fmt.Errorf("error marshalling product colors: %s", err)
+		}
+
+		jsonBytesColorAttribs, err := json.MarshalIndent(&prodColorAttribs, "", "\t")
+		if err != nil {
+			return fmt.Errorf("error marshalling product attributes: %s", err)
+		}
+
+		fmt.Println(
+			"Attributes: ", string(jsonBytesAttribs),
+			"\nColors: ", string(jsonBytesColors),
+			"\nColor Attributes: ", string(jsonBytesColorAttribs),
+		)
 
 		return nil
 	},

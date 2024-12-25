@@ -10,9 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.38.1
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gorilla/schema v1.4.1
-	github.com/iancoleman/strcase v0.3.0
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/r3labs/diff/v3 v3.0.1
 	github.com/spf13/cobra v1.8.1
 	golang.org/x/crypto v0.31.0
 )
@@ -35,6 +33,4 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
-	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 )
