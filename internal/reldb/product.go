@@ -9,6 +9,7 @@ type Product struct {
 	IPCatID           uint32  `db:"iPCatID" json:"iPCatID"`
 	CCode             *string `db:"cCode" json:"cCode"`
 	VName             string  `db:"vName" json:"vName"`
+	VCategoryName     string  `db:"vCategoryName" json:"vCategoryName"`
 	VURLName          string  `db:"vUrlName" json:"vUrlName"`
 	VShortDesc        *string `db:"vShortDesc" json:"vShortDesc"`
 	VDescription      *string `db:"vDescription" json:"vDescription"`
@@ -78,6 +79,41 @@ type dbPCARow struct {
 	ProductAttribute
 }
 
+func (m *Model) Products() ([]Product, error) {
+
+	qry := `SELECT
+				p.iProdID,
+				p.iPCatID,
+				p.cCode,
+				p.vName,
+				c.vName vCategoryName,
+				p.vUrlName,
+				p.vShortDesc,
+				p.vDescription,
+				p.fRetailPrice,
+				p.fRetailOPrice,
+				p.fShipping,
+				p.fPrice,
+				p.fOPrice,
+				p.fActualWeight,
+				p.fVolumetricWeight,
+				p.vSmallImage,
+				p.vSmallImage_AltTag,
+				p.vImage,
+				p.vImage_AltTag,
+				p.cStatus,
+				p.vYTID
+			FROM product p 
+				JOIN prodcat c ON p.iPCatID = c.iPCatID`
+
+	pp := []Product{}
+	if err := m.DB.Select(&pp, qry); err != nil {
+		return nil, fmt.Errorf("error fetching products: %s", err)
+	}
+
+	return pp, nil
+}
+
 func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
 
 	if iProdID == 0 {
@@ -86,12 +122,10 @@ func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
 
 	var productAttribs []ProductAttribute
 	query := `SELECT
-			    pa.iProdAttribID,
 				pa.iProdID,
 				pa.iAttribID,
     			a.vName as vAttribName,
 				pa.vValue,
-				pa.iPCID iAttribPCID,
 				pa.fRetailPrice,
 				pa.fRetailOPrice,
 				pa.fPrice,
@@ -106,29 +140,19 @@ func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
     			iProdID = ? AND
     			NOT (vValue = '' AND fPrice = 0) AND
     			iPCID = 0
-			ORDER BY pa.iProdAttribID`
-
-	if err := m.Select(&productAttribs, query, iProdID); err != nil {
-		fmt.Printf("\n\nerror fetching product attributes: %s\n\n", err)
-		return nil, err
-	}
-
-	return productAttribs, nil
-}
-
-func (m *Model) ProductColors(iProdID uint32) ([]ProductColor, error) {
-
-	query := `SELECT
-				pc.iPCID,
-				pc.iProdID iColorProdID,
-				pc.iColorID,
-				c.vName vColorName,
-				pc.fColorRetailPrice,
-				pc.fColorRetailOPrice,
-				pc.fColorPrice,
-				pc.fColorOPrice,
-				pc.cColorDefault,
-				pc.cStatus
+			ORDER BY pa.iProdID
+			UNION
+			SELECT
+				pc.iProdID,
+				18 as iAttribID,
+				"Color" as vAttribName, 
+				c.vName as vColorName,
+				pc.fColorRetailPrice as fRetailPrice,
+				pc.fColorRetailOPrice as fRetailOPrice,
+				pc.fColorPrice as fPrice,
+				pc.fColorOPrice as fOPrice,
+				pc.cColorDefault as cDefault,
+				pc.cStatus as cStock
 			FROM
 				product_color pc
 			JOIN color c ON
@@ -139,14 +163,11 @@ func (m *Model) ProductColors(iProdID uint32) ([]ProductColor, error) {
 			ORDER BY
 				pc.iColorID`
 
-	pcRows := []ProductColor{}
-
-	// Tell and exit if no rows found
-	if err := m.Select(&pcRows, query, iProdID, iProdID); err != nil {
-		return pcRows, fmt.Errorf("error scanning rows: %w", err)
+	if err := m.Select(&productAttribs, query, iProdID); err != nil {
+		return nil, fmt.Errorf("error fetching product attributes for product %d: %s", iProdID, err)
 	}
 
-	return pcRows, nil
+	return productAttribs, nil
 }
 
 func (m *Model) ProductColorAttributes(iProdID uint32) ([]ProductColorAttribute, error) {
