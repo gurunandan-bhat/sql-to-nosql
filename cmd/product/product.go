@@ -38,15 +38,15 @@ var productCmd = &cobra.Command{
 			return fmt.Errorf("error connecting to database: %s", err)
 		}
 
-		products, err := relDBH.Products()
-		if err != nil {
-			return err
-		}
-
-		// prodAttribs, err := relDBH.ProductAttributes(iProdID)
+		// products, err := relDBH.Products()
 		// if err != nil {
-		// 	return fmt.Errorf("error fetching product attributes for product %d: %s", iProdID, err)
+		// 	return err
 		// }
+
+		prodAttribs, err := relDBH.ProductAttributes(iProdID)
+		if err != nil {
+			return fmt.Errorf("error fetching product attributes for product %d: %s", iProdID, err)
+		}
 
 		// prodColors, err := relDBH.ProductColors(iProdID)
 		// if err != nil {
@@ -58,15 +58,15 @@ var productCmd = &cobra.Command{
 		// 	return fmt.Errorf("error fetching color attributes for product %d: %s", iProdID, err)
 		// }
 
-		jsonProducts, err := json.MarshalIndent(&products, "", "\t")
-		if err != nil {
-			return fmt.Errorf("error marshalling products: %s", err)
-		}
-
-		// jsonBytesAttribs, err := json.MarshalIndent(&prodAttribs, "", "\t")
+		// jsonProducts, err := json.MarshalIndent(&products, "", "\t")
 		// if err != nil {
-		// 	return fmt.Errorf("error marshalling product attributes: %s", err)
+		// 	return fmt.Errorf("error marshalling products: %s", err)
 		// }
+
+		jsonBytesAttribs, err := json.MarshalIndent(&prodAttribs, "", "\t")
+		if err != nil {
+			return fmt.Errorf("error marshalling product attributes: %s", err)
+		}
 
 		// jsonBytesColors, err := json.MarshalIndent(&prodColors, "", "\t")
 		// if err != nil {
@@ -79,8 +79,8 @@ var productCmd = &cobra.Command{
 		// }
 
 		fmt.Println(
-			"Products: ", string(jsonProducts),
-			// "\nAttributes: ", string(jsonBytesAttribs),
+			// "Products: ", string(jsonProducts),
+			"\nAttributes: ", string(jsonBytesAttribs),
 			// "\nColors: ", string(jsonBytesColors),
 			// "\nColor Attributes: ", string(jsonBytesColorAttribs),
 		)

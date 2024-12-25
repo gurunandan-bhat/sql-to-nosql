@@ -122,6 +122,7 @@ func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
 
 	var productAttribs []ProductAttribute
 	query := `SELECT
+				pa.iProdAttribID,
 				pa.iProdID,
 				pa.iAttribID,
     			a.vName as vAttribName,
@@ -140,13 +141,13 @@ func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
     			iProdID = ? AND
     			NOT (vValue = '' AND fPrice = 0) AND
     			iPCID = 0
-			ORDER BY pa.iProdID
 			UNION
 			SELECT
+				pc.iPCID as iProdAttribID,
 				pc.iProdID,
 				18 as iAttribID,
 				"Color" as vAttribName, 
-				c.vName as vColorName,
+				c.vName as vValue,
 				pc.fColorRetailPrice as fRetailPrice,
 				pc.fColorRetailOPrice as fRetailOPrice,
 				pc.fColorPrice as fPrice,
@@ -159,11 +160,9 @@ func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
 				pc.iColorID = c.iColorID
 			WHERE
 				pc.iProdID = ? AND 
-				pc.iPCID NOT IN (SELECT iPCID FROM product_attrib where iProdID = ?)
-			ORDER BY
-				pc.iColorID`
+				pc.iPCID NOT IN (SELECT iPCID FROM product_attrib where iProdID = ?)`
 
-	if err := m.Select(&productAttribs, query, iProdID); err != nil {
+	if err := m.Select(&productAttribs, query, iProdID, iProdID, iProdID); err != nil {
 		return nil, fmt.Errorf("error fetching product attributes for product %d: %s", iProdID, err)
 	}
 
