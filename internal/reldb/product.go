@@ -114,10 +114,16 @@ func (m *Model) Products() ([]Product, error) {
 	return pp, nil
 }
 
-func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
+func (m *Model) ProductAttributes(iProdID uint32, priced bool) ([]ProductAttribute, error) {
 
 	if iProdID == 0 {
 		return nil, nil
+	}
+
+	var addlAQry, addlCQry string
+	if priced {
+		addlAQry = ` AND pa.fRetailPrice > 0.0 `
+		addlCQry = ` AND pa.fColorRetailPrice > 0.0 `
 	}
 
 	var productAttribs []ProductAttribute
@@ -140,27 +146,28 @@ func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
 			WHERE
     			iProdID = ? AND
     			NOT (vValue = '' AND fPrice = 0) AND
-    			iPCID = 0
-			UNION
+    			iPCID = 0` + addlAQry +
+		`UNION
 			SELECT
-				pc.iPCID as iProdAttribID,
-				pc.iProdID,
+				pa.iPCID as iProdAttribID,
+				pa.iProdID,
 				18 as iAttribID,
 				"Color" as vAttribName, 
 				c.vName as vValue,
-				pc.fColorRetailPrice as fRetailPrice,
-				pc.fColorRetailOPrice as fRetailOPrice,
-				pc.fColorPrice as fPrice,
-				pc.fColorOPrice as fOPrice,
-				pc.cColorDefault as cDefault,
-				pc.cStatus as cStock
+				pa.fColorRetailPrice as fRetailPrice,
+				pa.fColorRetailOPrice as fRetailOPrice,
+				pa.fColorPrice as fPrice,
+				pa.fColorOPrice as fOPrice,
+				pa.cColorDefault as cDefault,
+				pa.cStatus as cStock
 			FROM
-				product_color pc
+				product_color pa
 			JOIN color c ON
-				pc.iColorID = c.iColorID
+				pa.iColorID = c.iColorID
 			WHERE
-				pc.iProdID = ? AND 
-				pc.iPCID NOT IN (SELECT iPCID FROM product_attrib where iProdID = ?)`
+				pa.iProdID = ? AND 
+				pa.iPCID NOT IN (SELECT iPCID FROM product_attrib where iProdID = ?)` +
+		addlCQry
 
 	if err := m.Select(&productAttribs, query, iProdID, iProdID, iProdID); err != nil {
 		return nil, fmt.Errorf("error fetching product attributes for product %d: %s", iProdID, err)
@@ -169,7 +176,16 @@ func (m *Model) ProductAttributes(iProdID uint32) ([]ProductAttribute, error) {
 	return productAttribs, nil
 }
 
-func (m *Model) ProductColorAttributes(iProdID uint32) ([]ProductColorAttribute, error) {
+func (m *Model) ProductColorAttributes(iProdID uint32, priced bool) ([]ProductColorAttribute, error) {
+
+	if iProdID == 0 {
+		return nil, nil
+	}
+
+	addlQry := ""
+	if priced {
+		addlQry = ` AND pa.fRetailPrice > 0.0 `
+	}
 
 	query := `SELECT
 				pc.iPCID,
@@ -203,8 +219,8 @@ func (m *Model) ProductColorAttributes(iProdID uint32) ([]ProductColorAttribute,
 			JOIN attribute a ON
 				pa.iAttribID = a.iAttribID
 			WHERE
-				pc.iProdID = ?
-			ORDER BY
+				pc.iProdID = ?` + addlQry +
+		`ORDER BY
 				pc.iColorID,
 				pa.iProdAttribID`
 

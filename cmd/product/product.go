@@ -51,43 +51,23 @@ var productCmd = &cobra.Command{
 			return nil
 		}
 
-		showAttribs, err := cmd.Flags().GetBool("show-attributes")
+		showSKUs, err := cmd.Flags().GetBool("show-skus")
 		if err != nil {
-			return fmt.Errorf("error parsing show-attributes option: %s", err)
+			return fmt.Errorf("error parsing show-skus option: %s", err)
 		}
-		if showAttribs {
-			prodAttribs, err := relDBH.ProductAttributes(iProdID)
+		if showSKUs {
+			productSKUs, err := relDBH.ProductSKUs(iProdID)
 			if err != nil {
-				return fmt.Errorf("error fetching product attributes for product %d: %s", iProdID, err)
+				return fmt.Errorf("error fetching product skus for product %d: %s", iProdID, err)
 			}
-			jsonBytesAttribs, err := json.MarshalIndent(&prodAttribs, "", "\t")
+			jsonBytesAttribs, err := json.MarshalIndent(&productSKUs, "", "\t")
 			if err != nil {
 				return fmt.Errorf("error marshalling product attributes: %s", err)
 			}
 			fmt.Println(
-				"Attributes: ", string(jsonBytesAttribs),
+				"SKUs: ", string(jsonBytesAttribs),
 			)
 		}
-
-		showColors, err := cmd.Flags().GetBool("show-colors")
-		if err != nil {
-			return fmt.Errorf("error parsing show-colors option: %s", err)
-		}
-
-		if showColors {
-			prodColorAttribs, err := relDBH.ProductColorAttributes(iProdID)
-			if err != nil {
-				return fmt.Errorf("error fetching color attributes for product %d: %s", iProdID, err)
-			}
-			jsonBytesColorAttribs, err := json.MarshalIndent(&prodColorAttribs, "", "\t")
-			if err != nil {
-				return fmt.Errorf("error marshalling product attributes: %s", err)
-			}
-			fmt.Println(
-				"Color Attributes: ", string(jsonBytesColorAttribs),
-			)
-		}
-
 		return nil
 	},
 }
@@ -105,7 +85,9 @@ func init() {
 	// is called directly, e.g.:
 	// productCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	productCmd.Flags().Uint32P("iProdID", "i", 0, "Display attributes of product with <id>")
+
 	productCmd.Flags().BoolP("show-products", "p", false, "Dump products")
-	productCmd.Flags().BoolP("show-attributes", "a", false, "Dump attributes")
-	productCmd.Flags().BoolP("show-colors", "c", false, "Dump color attributes")
+	productCmd.Flags().BoolP("show-skus", "s", false, "Dump product SKUs")
+
+	productCmd.MarkFlagsRequiredTogether("iProdID", "show-skus")
 }
