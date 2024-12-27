@@ -8,16 +8,24 @@ import (
 	"github.com/gurunandan-bhat/sql-to-nosql/internal/config"
 	"github.com/gurunandan-bhat/sql-to-nosql/internal/reldb"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/aws/aws-sdk-go/aws"
 )
 
 type CategoryValue struct {
-	PK string
-	SK string
-	reldb.CategorySummary
+	PK          string
+	SK          string
+	IPCatID     uint32
+	VName       string
+	VURLName    string
+	IParentID   uint32
+	VShortDesc  *string
+	MImages     reldb.Images
+	CStatus     string
+	LAttributes []reldb.CategoryAttribute
+	LChildren   []reldb.CategorySummary
 }
 
 // TableBasics encapsulates the Amazon DynamoDB service actions used in the examples.
@@ -34,12 +42,24 @@ func PutCategory(ctx context.Context, cat reldb.CategorySummary) error {
 		log.Fatalf("error fetching default configuration: %s", err)
 	}
 
-	client := dynamodb.NewFromConfig(cfg)
+	// client := dynamodb.NewFromConfig(cfg)
+
+	client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+		o.BaseEndpoint = aws.String("https://localhost:4000")
+	})
 
 	catVal := CategoryValue{
-		PK:              "Category",
-		SK:              fmt.Sprintf("CAT#%d", cat.IPCatID),
-		CategorySummary: cat,
+		PK:          "Category",
+		SK:          fmt.Sprintf("CAT#%d", cat.IPCatID),
+		IPCatID:     cat.IPCatID,
+		VName:       cat.VName,
+		VURLName:    cat.VURLName,
+		IParentID:   cat.IParentID,
+		VShortDesc:  cat.VShortDesc,
+		MImages:     cat.Images,
+		CStatus:     cat.CStatus,
+		LAttributes: cat.Attributes,
+		LChildren:   cat.Children,
 	}
 
 	av, err := attributevalue.MarshalMap(catVal)
@@ -58,8 +78,8 @@ func PutCategory(ctx context.Context, cat reldb.CategorySummary) error {
 	return nil
 }
 
-// AddMovieBatch adds a slice of movies to the DynamoDB table. The function sends
-// batches of 25 movies to DynamoDB until all movies are added or it reaches the
+// AddCategoryBatch adds a slice of categories to the DynamoDB table. The function sends
+// batches of 25 categories to DynamoDB until all categories are added or it reaches the
 // specified maximum.
 func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, maxCats int) (int, error) {
 
@@ -71,7 +91,11 @@ func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, m
 		return 0, fmt.Errorf("error fetching default configuration: %s", err)
 	}
 
-	client := dynamodb.NewFromConfig(cfg)
+	// client := dynamodb.NewFromConfig(cfg)
+
+	client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+		o.BaseEndpoint = aws.String("http://localhost:4000")
+	})
 
 	written := 0
 	batchSize := 25 // DynamoDB allows a maximum batch size of 25 items.
@@ -86,10 +110,19 @@ func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, m
 
 		for _, category := range categories[start:end] {
 			catVal := CategoryValue{
-				PK:              "Category",
-				SK:              fmt.Sprintf("CAT#%d", category.IPCatID),
-				CategorySummary: category,
+				PK:          "Category",
+				SK:          fmt.Sprintf("CAT#%d", category.IPCatID),
+				IPCatID:     category.IPCatID,
+				VName:       category.VName,
+				VURLName:    category.VURLName,
+				IParentID:   category.IParentID,
+				VShortDesc:  category.VShortDesc,
+				MImages:     category.Images,
+				CStatus:     category.CStatus,
+				LAttributes: category.Attributes,
+				LChildren:   category.Children,
 			}
+
 			item, err = attributevalue.MarshalMap(catVal)
 			if err != nil {
 				log.Printf("Couldn't marshal category %v for batch writing. Here's why: %v\n", category.VName, err)

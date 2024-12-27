@@ -5,16 +5,15 @@ import (
 )
 
 type CategorySummary struct {
-	IPCatID           uint32              `db:"iPCatID"`
-	VName             string              `db:"vName"`
-	VURLName          string              `db:"vUrlName"`
-	IParentID         uint32              `db:"iParentID"`
-	VShortDesc        *string             `db:"vShortDesc"`
-	VMenuImage        *string             `db:"vMenuImage"`
-	VMenuImage_AltTag *string             `db:"vMenuImage_AltTag"`
-	CStatus           string              `db:"cStatus"`
-	Attributes        []CategoryAttribute `db:"-"`
-	Children          []CategorySummary   `db:"-"`
+	IPCatID    uint32  `db:"iPCatID"`
+	VName      string  `db:"vName"`
+	VURLName   string  `db:"vUrlName"`
+	IParentID  uint32  `db:"iParentID"`
+	VShortDesc *string `db:"vShortDesc"`
+	Images
+	CStatus    string              `db:"cStatus"`
+	Attributes []CategoryAttribute `db:"-"`
+	Children   []CategorySummary   `db:"-"`
 }
 
 type CategoryAttribute struct {
@@ -34,8 +33,8 @@ func (m *Model) CategoryMaster() (map[uint32]*CategorySummary, error) {
 				vUrlName,
 				iParentID,
 				vShortDesc,
-				vMenuImage,
-				vMenuImage_AltTag,
+				vMenuImage vImage,
+				vMenuImage_AltTag vImage_AltTag,
 				cStatus
 			FROM
 				prodcat

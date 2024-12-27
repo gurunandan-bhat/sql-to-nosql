@@ -4,15 +4,7 @@ import (
 	"fmt"
 )
 
-type Product struct {
-	IProdID           uint32  `db:"iProdID" json:"iProdID"`
-	IPCatID           uint32  `db:"iPCatID" json:"iPCatID"`
-	CCode             *string `db:"cCode" json:"cCode"`
-	VName             string  `db:"vName" json:"vName"`
-	VCategoryName     string  `db:"vCategoryName" json:"vCategoryName"`
-	VURLName          string  `db:"vUrlName" json:"vUrlName"`
-	VShortDesc        *string `db:"vShortDesc" json:"vShortDesc"`
-	VDescription      *string `db:"vDescription" json:"vDescription"`
+type ProdPrice struct {
 	FRetailPrice      float64 `db:"fRetailPrice" json:"fRetailPrice"`
 	FRetailOPrice     float64 `db:"fRetailOPrice" json:"fRetailOPrice"`
 	FShipping         float64 `db:"fShipping" json:"fShipping"`
@@ -20,17 +12,30 @@ type Product struct {
 	FOPrice           float64 `db:"fOPrice" json:"fOPrice"`
 	FActualWeight     float64 `db:"fActualWeight" json:"fActualWeight"`
 	FVolumetricWeight float64 `db:"fVolumetricWeight" json:"fVolumetricWeight"`
+}
+
+type Images struct {
 	VSmallImage       *string `db:"vSmallImage" json:"vSmallImage"`
 	VSmallImageAltTag *string `db:"vSmallImage_AltTag" json:"vSmallImage_AltTag"`
 	VImage            *string `db:"vImage" json:"vImage"`
 	VImageAltTag      *string `db:"vImage_AltTag" json:"vImage_AltTag"`
-	CStatus           *string `db:"cStatus" json:"cStatus"`
-	VYTID             *string `db:"vYTID" json:"vYTID"`
 }
 
-type ProductStatus struct {
-	IProdID int32   `json:"iProdID,omitempty"`
-	CStatus *string `json:"cStatus,omitempty"`
+type Product struct {
+	IProdID       uint32  `db:"iProdID" json:"iProdID"`
+	IPCatID       uint32  `db:"iPCatID" json:"iPCatID"`
+	CCode         *string `db:"cCode" json:"cCode"`
+	VName         string  `db:"vName" json:"vName"`
+	VCategoryName string  `db:"vCategoryName" json:"vCategoryName"`
+	VURLName      string  `db:"vUrlName" json:"vUrlName"`
+	VShortDesc    *string `db:"vShortDesc" json:"vShortDesc"`
+	VDescription  *string `db:"vDescription" json:"vDescription"`
+	ProdPrice
+	Images
+	CStatus    *string            `db:"cStatus" json:"cStatus"`
+	VYTID      *string            `db:"vYTID" json:"vYTID"`
+	Attributes []ProductAttribute `db:"-" json:"-"`
+	SKUs       []SKU              `db:"-" json:"-"`
 }
 
 type Color struct {
@@ -124,6 +129,9 @@ func (m *Model) ProductAttributes(iProdID uint32, priced bool) ([]ProductAttribu
 	if priced {
 		addlAQry = ` AND pa.fRetailPrice > 0.0 `
 		addlCQry = ` AND pa.fColorRetailPrice > 0.0 `
+	} else {
+		addlAQry = ` AND pa.fRetailPrice = 0 `
+		addlCQry = ` AND pa.fColorRetailPrice = 0 `
 	}
 
 	var productAttribs []ProductAttribute

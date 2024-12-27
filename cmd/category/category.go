@@ -5,6 +5,7 @@ package category
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/gurunandan-bhat/sql-to-nosql/cmd"
@@ -18,6 +19,11 @@ var categoryCmd = &cobra.Command{
 	Use:   "category",
 	Short: "Tranfer Mario Categories from mysql to dynamodb",
 	RunE: func(cmd *cobra.Command, args []string) error {
+
+		bDryRun, err := cmd.Flags().GetBool("dry-run")
+		if err != nil {
+			return fmt.Errorf("error parsing argument dry-run: %s", err)
+		}
 
 		cfg, err := reldb.Configuration()
 		if err != nil {
@@ -34,12 +40,21 @@ var categoryCmd = &cobra.Command{
 			return fmt.Errorf("error fetching categories in cmd: %s", err)
 		}
 
-		batchSize := 200
-		count, err := model.AddCategoryBatch(context.Background(), categories, batchSize)
-		if err != nil {
-			return fmt.Errorf("error adding bulk categories: %s", err)
+		if !bDryRun {
+			batchSize := 200
+			count, err := model.AddCategoryBatch(context.Background(), categories, batchSize)
+			if err != nil {
+				return fmt.Errorf("error adding bulk categories: %s", err)
+			}
+			fmt.Println("Inserted ", count, " categories")
+			return nil
 		}
-		fmt.Println("Inserted ", count, " categories")
+
+		jsonBytes, err := json.MarshalIndent(&categories, "", "\t")
+		if err != nil {
+			return fmt.Errorf("error marshaling categories: %s", err)
+		}
+		fmt.Println("Categories: ", string(jsonBytes))
 
 		return nil
 	},
@@ -56,5 +71,5 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// categoryCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	categoryCmd.Flags().BoolP("dry-run", "d", false, "Dump categories, dont insert")
 }

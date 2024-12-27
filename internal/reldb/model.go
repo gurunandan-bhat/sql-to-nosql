@@ -44,18 +44,6 @@ func NewModel(cfg *Config) (*Model, error) {
 	}, nil
 }
 
-func (m *Model) TableDefinition(table string) (TableDef, error) {
-
-	qry := fmt.Sprintf("SHOW CREATE TABLE %s", table)
-	var sql = TableDef{}
-
-	if err := m.Get(&sql, qry); err != nil {
-		return sql, fmt.Errorf("error fetching table definition: %w", err)
-	}
-
-	return sql, nil
-}
-
 //lint:ignore U1000 Ignore unused function temporarily for debugging
 func dumpJSON(prefix string, v any) error {
 
