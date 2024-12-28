@@ -4,10 +4,12 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package product
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/gurunandan-bhat/sql-to-nosql/cmd"
+	"github.com/gurunandan-bhat/sql-to-nosql/internal/model"
 	"github.com/gurunandan-bhat/sql-to-nosql/internal/reldb"
 	"github.com/spf13/cobra"
 )
@@ -51,6 +53,23 @@ var productCmd = &cobra.Command{
 			return nil
 		}
 
+		showAttribs, err := cmd.Flags().GetBool("show-attributes")
+		if err != nil {
+			return fmt.Errorf("error parsing show-attributes: %s", err)
+		}
+		if showAttribs {
+			attribs, err := relDBH.ProductAttributes(iProdID, false)
+			if err != nil {
+				return fmt.Errorf("error fetching product attributes for %d: %s", iProdID, err)
+			}
+			jsonAttribs, err := json.MarshalIndent(&attribs, "", "\t")
+			if err != nil {
+				return fmt.Errorf("error marshalling attributes: %s", err)
+			}
+			fmt.Println("Attributes: ", string(jsonAttribs))
+			return nil
+		}
+
 		showSKUs, err := cmd.Flags().GetBool("show-skus")
 		if err != nil {
 			return fmt.Errorf("error parsing show-skus option: %s", err)
@@ -68,6 +87,36 @@ var productCmd = &cobra.Command{
 				"SKUs: ", string(jsonBytesAttribs),
 			)
 		}
+
+		products, err := relDBH.Products()
+		if err != nil {
+			return fmt.Errorf("error fetching all products: %s", err)
+		}
+
+		for i := range products {
+
+			iProdID := products[i].IProdID
+			attribs, err := relDBH.ProductAttributes(iProdID, false)
+			if err != nil {
+				return fmt.Errorf("error fetching product attributes for %d: %s", iProdID, err)
+			}
+			products[i].Attributes = attribs
+
+			skus, err := relDBH.ProductSKUs(iProdID)
+			if err != nil {
+				return fmt.Errorf("error fetching product skus for product %d: %s", iProdID, err)
+			}
+			products[i].SKUs = skus
+		}
+
+		batchSize := 3000
+		count, err := model.AddProductBatch(context.TODO(), products, batchSize)
+		if err != nil {
+			return fmt.Errorf("error adding products to dynamodb: %s", err)
+		}
+
+		fmt.Printf("Inserted %d products\n", count)
+
 		return nil
 	},
 }
@@ -88,6 +137,5 @@ func init() {
 
 	productCmd.Flags().BoolP("show-products", "p", false, "Dump products")
 	productCmd.Flags().BoolP("show-skus", "s", false, "Dump product SKUs")
-
-	productCmd.MarkFlagsRequiredTogether("iProdID", "show-skus")
+	productCmd.Flags().BoolP("show-attributes", "a", false, "Dump product attributes")
 }

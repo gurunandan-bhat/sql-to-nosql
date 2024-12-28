@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gurunandan-bhat/sql-to-nosql/internal/config"
 	"github.com/gurunandan-bhat/sql-to-nosql/internal/reldb"
@@ -26,6 +27,25 @@ type CategoryValue struct {
 	CStatus     string
 	LAttributes []reldb.CategoryAttribute
 	LChildren   []reldb.CategorySummary
+}
+
+type ProductValue struct {
+	PK            string
+	SK            string
+	IProdID       uint32
+	IPCatID       uint32
+	CCode         *string
+	VName         string
+	VCategoryName string
+	VURLName      string
+	VShortDesc    *string
+	VDescription  *string
+	MPrices       reldb.ProdPrice
+	MImages       reldb.Images
+	CStatus       *string
+	VYTID         *string
+	LAttributes   []reldb.ProductAttribute
+	LSKUs         []reldb.SKU
 }
 
 // TableBasics encapsulates the Amazon DynamoDB service actions used in the examples.
@@ -91,11 +111,11 @@ func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, m
 		return 0, fmt.Errorf("error fetching default configuration: %s", err)
 	}
 
-	// client := dynamodb.NewFromConfig(cfg)
+	client := dynamodb.NewFromConfig(cfg)
 
-	client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
-		o.BaseEndpoint = aws.String("http://localhost:4000")
-	})
+	// client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+	// 	o.BaseEndpoint = aws.String("http://localhost:4000")
+	// })
 
 	written := 0
 	batchSize := 25 // DynamoDB allows a maximum batch size of 25 items.
@@ -146,6 +166,84 @@ func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, m
 
 		start = end
 		end += batchSize
+	}
+
+	return written, err
+}
+
+// AddCategoryBatch adds a slice of categories to the DynamoDB table. The function sends
+// batches of 25 categories to DynamoDB until all categories are added or it reaches the
+// specified maximum.
+func AddProductBatch(ctx context.Context, products []reldb.Product, maxCats int) (int, error) {
+
+	cfg, err := config.Configuration()
+	if err != nil {
+		return 0, fmt.Errorf("error fetching default configuration: %s", err)
+	}
+
+	client := dynamodb.NewFromConfig(cfg)
+
+	// client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+	// 	o.BaseEndpoint = aws.String("http://localhost:4000")
+	// })
+
+	written := 0
+	batchSize := 25 // DynamoDB allows a maximum batch size of 25 items.
+	start := 0
+	end := start + batchSize
+	for start < maxCats && start < len(products) {
+
+		var writeReqs []types.WriteRequest
+		if end > len(products) {
+			end = len(products)
+		}
+
+		for _, product := range products[start:end] {
+			prodVal := ProductValue{
+				PK:            fmt.Sprintf("%sPROD%d", *product.CStatus, product.IProdID),
+				SK:            fmt.Sprintf("CAT#%d", product.IPCatID),
+				IPCatID:       product.IPCatID,
+				VName:         product.VName,
+				VCategoryName: product.VCategoryName,
+				VURLName:      product.VURLName,
+				CCode:         product.CCode,
+				VShortDesc:    product.VShortDesc,
+				VDescription:  product.VDescription,
+				MImages:       product.Images,
+				MPrices:       product.ProdPrice,
+				CStatus:       product.CStatus,
+				LAttributes:   product.Attributes,
+				LSKUs:         product.SKUs,
+				VYTID:         product.VYTID,
+			}
+
+			item, err := attributevalue.MarshalMap(prodVal)
+			if err != nil {
+				log.Printf("Couldn't marshal category %v for batch writing. Here's why: %v\n", product.VName, err)
+			} else {
+				writeReqs = append(
+					writeReqs,
+					types.WriteRequest{PutRequest: &types.PutRequest{Item: item}},
+				)
+			}
+		}
+
+		requests := map[string][]types.WriteRequest{"Mario": writeReqs}
+		opLog, err := client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
+			RequestItems: requests,
+		})
+		if err != nil {
+			log.Printf("Couldn't add a batch of products to %v. Here's why: %v\n", "Mario", err)
+		} else {
+			written += len(writeReqs)
+			fmt.Printf("%#v\n", opLog)
+		}
+
+		start = end
+		end += batchSize
+		tSleep := 25 * time.Second
+		fmt.Printf("Sleeping for %s after adding %d entries\n", tSleep, start)
+		time.Sleep(tSleep)
 	}
 
 	return written, err

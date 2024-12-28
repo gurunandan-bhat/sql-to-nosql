@@ -34,8 +34,8 @@ type Product struct {
 	Images
 	CStatus    *string            `db:"cStatus" json:"cStatus"`
 	VYTID      *string            `db:"vYTID" json:"vYTID"`
-	Attributes []ProductAttribute `db:"-" json:"-"`
-	SKUs       []SKU              `db:"-" json:"-"`
+	Attributes []ProductAttribute `db:"-" json:"attributes"`
+	SKUs       []SKU              `db:"-" json:"skus"`
 }
 
 type Color struct {
@@ -106,7 +106,7 @@ func (m *Model) Products() ([]Product, error) {
 				p.vSmallImage_AltTag,
 				p.vImage,
 				p.vImage_AltTag,
-				p.cStatus,
+				COALESCE(p.cStatus, "I") cStatus,
 				p.vYTID
 			FROM product p 
 				JOIN prodcat c ON p.iPCatID = c.iPCatID`

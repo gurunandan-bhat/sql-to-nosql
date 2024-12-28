@@ -35,7 +35,7 @@ func (m *Model) CategoryMaster() (map[uint32]*CategorySummary, error) {
 				vShortDesc,
 				vMenuImage vImage,
 				vMenuImage_AltTag vImage_AltTag,
-				cStatus
+				COALESCE(cStatus, 'I') cStatus
 			FROM
 				prodcat
 			ORDER BY
