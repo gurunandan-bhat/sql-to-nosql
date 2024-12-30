@@ -35,7 +35,7 @@ var categoryCmd = &cobra.Command{
 			return fmt.Errorf("error connecting to database: %s", err)
 		}
 
-		categories, err := relDBH.Categories()
+		categories, err := relDBH.CategoryTree()
 		if err != nil {
 			return fmt.Errorf("error fetching categories in cmd: %s", err)
 		}

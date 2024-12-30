@@ -16,36 +16,36 @@ import (
 )
 
 type CategoryValue struct {
-	PK          string
-	SK          string
-	IPCatID     uint32
-	VName       string
-	VURLName    string
-	IParentID   uint32
-	VShortDesc  *string
-	MImages     reldb.Images
-	CStatus     string
-	LAttributes []reldb.CategoryAttribute
-	LChildren   []reldb.CategorySummary
+	PK                string
+	SK                string
+	IPCatID           uint32
+	VName             string
+	VURLName          string
+	IParentID         uint32
+	VShortDescription *string
+	MImages           reldb.Images
+	CTypeStatus       string
+	LAttributes       []reldb.CategoryAttribute
+	LChildren         []*reldb.CategorySummary
 }
 
 type ProductValue struct {
-	PK            string
-	SK            string
-	IProdID       uint32
-	IPCatID       uint32
-	CCode         *string
-	VName         string
-	VCategoryName string
-	VURLName      string
-	VShortDesc    *string
-	VDescription  *string
-	MPrices       reldb.ProdPrice
-	MImages       reldb.Images
-	CStatus       *string
-	VYTID         *string
-	LAttributes   []reldb.ProductAttribute
-	LSKUs         []reldb.SKU
+	PK                string
+	SK                string
+	IProdID           uint32
+	IPCatID           uint32
+	CCode             *string
+	VName             string
+	VCategoryName     string
+	VURLName          string
+	VShortDescription *string
+	VDescription      *string
+	MPrices           reldb.ProdPrice
+	MImages           reldb.Images
+	CTypeStatus       string
+	VYTID             *string
+	LAttributes       []reldb.ProductAttribute
+	LSKUs             []reldb.SKU
 }
 
 // TableBasics encapsulates the Amazon DynamoDB service actions used in the examples.
@@ -69,17 +69,17 @@ func PutCategory(ctx context.Context, cat reldb.CategorySummary) error {
 	})
 
 	catVal := CategoryValue{
-		PK:          "Category",
-		SK:          fmt.Sprintf("CAT#%d", cat.IPCatID),
-		IPCatID:     cat.IPCatID,
-		VName:       cat.VName,
-		VURLName:    cat.VURLName,
-		IParentID:   cat.IParentID,
-		VShortDesc:  cat.VShortDesc,
-		MImages:     cat.Images,
-		CStatus:     cat.CStatus,
-		LAttributes: cat.Attributes,
-		LChildren:   cat.Children,
+		PK:                "Category",
+		SK:                fmt.Sprintf("CAT#%d", cat.IPCatID),
+		IPCatID:           cat.IPCatID,
+		VName:             cat.VName,
+		VURLName:          cat.VURLName,
+		IParentID:         cat.IParentID,
+		VShortDescription: cat.VShortDesc,
+		MImages:           cat.Images,
+		CTypeStatus:       fmt.Sprintf("C%s", cat.CStatus),
+		LAttributes:       cat.Attributes,
+		LChildren:         cat.Children,
 	}
 
 	av, err := attributevalue.MarshalMap(catVal)
@@ -130,17 +130,17 @@ func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, m
 
 		for _, category := range categories[start:end] {
 			catVal := CategoryValue{
-				PK:          "Category",
-				SK:          fmt.Sprintf("CAT#%d", category.IPCatID),
-				IPCatID:     category.IPCatID,
-				VName:       category.VName,
-				VURLName:    category.VURLName,
-				IParentID:   category.IParentID,
-				VShortDesc:  category.VShortDesc,
-				MImages:     category.Images,
-				CStatus:     category.CStatus,
-				LAttributes: category.Attributes,
-				LChildren:   category.Children,
+				PK:                "Category",
+				SK:                fmt.Sprintf("CAT#%d", category.IPCatID),
+				IPCatID:           category.IPCatID,
+				VName:             category.VName,
+				VURLName:          category.VURLName,
+				IParentID:         category.IParentID,
+				VShortDescription: category.VShortDesc,
+				MImages:           category.Images,
+				CTypeStatus:       fmt.Sprintf("C%s", category.CStatus),
+				LAttributes:       category.Attributes,
+				LChildren:         category.Children,
 			}
 
 			item, err = attributevalue.MarshalMap(catVal)
@@ -166,6 +166,10 @@ func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, m
 
 		start = end
 		end += batchSize
+		tSleep := 25 * time.Second
+		fmt.Printf("Sleeping for %s after adding %d entries\n", tSleep, start)
+		time.Sleep(tSleep)
+
 	}
 
 	return written, err
@@ -200,21 +204,21 @@ func AddProductBatch(ctx context.Context, products []reldb.Product, maxCats int)
 
 		for _, product := range products[start:end] {
 			prodVal := ProductValue{
-				PK:            fmt.Sprintf("%sPROD%d", *product.CStatus, product.IProdID),
-				SK:            fmt.Sprintf("CAT#%d", product.IPCatID),
-				IPCatID:       product.IPCatID,
-				VName:         product.VName,
-				VCategoryName: product.VCategoryName,
-				VURLName:      product.VURLName,
-				CCode:         product.CCode,
-				VShortDesc:    product.VShortDesc,
-				VDescription:  product.VDescription,
-				MImages:       product.Images,
-				MPrices:       product.ProdPrice,
-				CStatus:       product.CStatus,
-				LAttributes:   product.Attributes,
-				LSKUs:         product.SKUs,
-				VYTID:         product.VYTID,
+				PK:                fmt.Sprintf("%sPROD%d", *product.CStatus, product.IProdID),
+				SK:                fmt.Sprintf("CAT#%d", product.IPCatID),
+				IPCatID:           product.IPCatID,
+				VName:             product.VName,
+				VCategoryName:     product.VCategoryName,
+				VURLName:          product.VURLName,
+				CCode:             product.CCode,
+				VShortDescription: product.VShortDesc,
+				VDescription:      product.VDescription,
+				MImages:           product.Images,
+				MPrices:           product.ProdPrice,
+				CTypeStatus:       fmt.Sprintf("P%s", *product.CStatus),
+				LAttributes:       product.Attributes,
+				LSKUs:             product.SKUs,
+				VYTID:             product.VYTID,
 			}
 
 			item, err := attributevalue.MarshalMap(prodVal)
@@ -229,14 +233,13 @@ func AddProductBatch(ctx context.Context, products []reldb.Product, maxCats int)
 		}
 
 		requests := map[string][]types.WriteRequest{"Mario": writeReqs}
-		opLog, err := client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
+		_, err := client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
 			RequestItems: requests,
 		})
 		if err != nil {
 			log.Printf("Couldn't add a batch of products to %v. Here's why: %v\n", "Mario", err)
 		} else {
 			written += len(writeReqs)
-			fmt.Printf("%#v\n", opLog)
 		}
 
 		start = end

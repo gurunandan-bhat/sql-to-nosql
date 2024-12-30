@@ -7,6 +7,7 @@ import (
 	"github.com/gurunandan-bhat/sql-to-nosql/cmd"
 	_ "github.com/gurunandan-bhat/sql-to-nosql/cmd/category"
 	_ "github.com/gurunandan-bhat/sql-to-nosql/cmd/product"
+	_ "github.com/gurunandan-bhat/sql-to-nosql/cmd/tree"
 )
 
 func main() {

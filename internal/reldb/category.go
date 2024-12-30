@@ -13,7 +13,7 @@ type CategorySummary struct {
 	Images
 	CStatus    string              `db:"cStatus"`
 	Attributes []CategoryAttribute `db:"-"`
-	Children   []CategorySummary   `db:"-"`
+	Children   []*CategorySummary  `db:"-"`
 }
 
 type CategoryAttribute struct {
@@ -39,7 +39,7 @@ func (m *Model) CategoryMaster() (map[uint32]*CategorySummary, error) {
 			FROM
 				prodcat
 			ORDER BY
-				vName`
+				IPCatID`
 	var categories []CategorySummary
 	if err := m.Select(&categories, query); err != nil {
 		return nil, err
@@ -95,43 +95,45 @@ func (m *Model) CategoryAttributes() (map[uint32][]CategoryAttribute, error) {
 	return catAttrMap, nil
 }
 
-func (m *Model) Categories() ([]CategorySummary, error) {
+func (m *Model) CategoryTree() ([]CategorySummary, error) {
 
 	catSummMap, err := m.CategoryMaster()
 	if err != nil {
 		return nil, fmt.Errorf("error fetching category summary: %s", err)
 	}
 
-	catAttrMap, err := m.CategoryAttributes()
+	// Keep attributes and children
+	// ready to assign to categories
+	attribs, err := m.CategoryAttributes()
 	if err != nil {
 		return nil, fmt.Errorf("error fetching category attributes: %s", err)
 	}
 
-	// Lets fix the children and the attributes.
 	for iPCatID, category := range catSummMap {
+
+		category.Attributes = attribs[iPCatID]
 
 		if iPCatID > 0 {
 			parent, hasParent := catSummMap[category.IParentID]
 			if hasParent {
 				if parent.Children == nil {
-					parent.Children = make([]CategorySummary, 0)
+					parent.Children = make([]*CategorySummary, 0)
 				}
-				parent.Children = append(parent.Children, *category)
+				parent.Children = append(parent.Children, category)
 			}
 		}
-
-		attr, exists := catAttrMap[iPCatID]
-		if exists {
-			category.Attributes = attr
-		}
 	}
 
-	result := make([]CategorySummary, 0)
+	// we want to send the tree root
+	// as the first element of this slice
+	categories := []CategorySummary{*catSummMap[0]}
+	// and remove that key from the map
+	delete(catSummMap, 0)
+
+	// Now add the rest in
 	for _, cat := range catSummMap {
-		if cat.IPCatID > 0 { // Dont add the root category
-			result = append(result, *cat)
-		}
+		categories = append(categories, *cat)
 	}
 
-	return result, nil
+	return categories, nil
 }
