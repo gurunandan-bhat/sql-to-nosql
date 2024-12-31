@@ -19,8 +19,8 @@ type CategoryValue struct {
 	PK                string
 	SK                string
 	IPCatID           uint32
-	VName             string
-	VURLName          string
+	VCategoryName     string
+	VCategoryURLName  string
 	IParentID         uint32
 	VShortDescription *string
 	MImages           reldb.Images
@@ -36,8 +36,9 @@ type ProductValue struct {
 	IPCatID           uint32
 	CCode             *string
 	VName             string
-	VCategoryName     string
 	VURLName          string
+	VCategoryName     string
+	VCategoryURLName  string
 	VShortDescription *string
 	VDescription      *string
 	MPrices           reldb.ProdPrice
@@ -54,6 +55,9 @@ type TableBasics struct {
 	DynamoDbClient *dynamodb.Client
 	TableName      string
 }
+
+var tableName = "MarioGallery"
+var sleepBetweenBatches time.Duration = 30 * time.Second
 
 func PutCategory(ctx context.Context, cat reldb.CategorySummary) error {
 
@@ -72,8 +76,8 @@ func PutCategory(ctx context.Context, cat reldb.CategorySummary) error {
 		PK:                "Category",
 		SK:                fmt.Sprintf("CAT#%d", cat.IPCatID),
 		IPCatID:           cat.IPCatID,
-		VName:             cat.VName,
-		VURLName:          cat.VURLName,
+		VCategoryName:     cat.VName,
+		VCategoryURLName:  cat.VURLName,
 		IParentID:         cat.IParentID,
 		VShortDescription: cat.VShortDesc,
 		MImages:           cat.Images,
@@ -88,7 +92,7 @@ func PutCategory(ctx context.Context, cat reldb.CategorySummary) error {
 	}
 
 	_, err = client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String("Mario"),
+		TableName: aws.String(tableName),
 		Item:      av,
 	})
 	if err != nil {
@@ -133,8 +137,8 @@ func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, m
 				PK:                "Category",
 				SK:                fmt.Sprintf("CAT#%d", category.IPCatID),
 				IPCatID:           category.IPCatID,
-				VName:             category.VName,
-				VURLName:          category.VURLName,
+				VCategoryName:     category.VName,
+				VCategoryURLName:  category.VURLName,
 				IParentID:         category.IParentID,
 				VShortDescription: category.VShortDesc,
 				MImages:           category.Images,
@@ -154,21 +158,21 @@ func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, m
 			}
 		}
 
-		requests := map[string][]types.WriteRequest{"Mario": writeReqs}
+		requests := map[string][]types.WriteRequest{tableName: writeReqs}
 		_, err = client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
 			RequestItems: requests,
 		})
 		if err != nil {
-			log.Printf("Couldn't add a batch of categories to %v. Here's why: %v\n", "Mario", err)
+			log.Printf("Couldn't add a batch of categories to %v. Here's why: %v\n", tableName, err)
 		} else {
 			written += len(writeReqs)
 		}
 
 		start = end
 		end += batchSize
-		tSleep := 25 * time.Second
-		fmt.Printf("Sleeping for %s after adding %d entries\n", tSleep, start)
-		time.Sleep(tSleep)
+
+		fmt.Printf("Sleeping for %s after adding %d entries\n", sleepBetweenBatches, start)
+		time.Sleep(sleepBetweenBatches)
 
 	}
 
@@ -208,8 +212,9 @@ func AddProductBatch(ctx context.Context, products []reldb.Product, maxCats int)
 				SK:                fmt.Sprintf("CAT#%d", product.IPCatID),
 				IPCatID:           product.IPCatID,
 				VName:             product.VName,
-				VCategoryName:     product.VCategoryName,
 				VURLName:          product.VURLName,
+				VCategoryName:     product.VCategoryName,
+				VCategoryURLName:  product.VCategoryURLName,
 				CCode:             product.CCode,
 				VShortDescription: product.VShortDesc,
 				VDescription:      product.VDescription,
@@ -232,21 +237,21 @@ func AddProductBatch(ctx context.Context, products []reldb.Product, maxCats int)
 			}
 		}
 
-		requests := map[string][]types.WriteRequest{"Mario": writeReqs}
+		requests := map[string][]types.WriteRequest{tableName: writeReqs}
 		_, err := client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
 			RequestItems: requests,
 		})
 		if err != nil {
-			log.Printf("Couldn't add a batch of products to %v. Here's why: %v\n", "Mario", err)
+			log.Printf("Couldn't add a batch of products to %v. Here's why: %v\n", tableName, err)
 		} else {
 			written += len(writeReqs)
 		}
 
 		start = end
 		end += batchSize
-		tSleep := 25 * time.Second
-		fmt.Printf("Sleeping for %s after adding %d entries\n", tSleep, start)
-		time.Sleep(tSleep)
+
+		fmt.Printf("Sleeping for %s after adding %d entries\n", sleepBetweenBatches, start)
+		time.Sleep(sleepBetweenBatches)
 	}
 
 	return written, err

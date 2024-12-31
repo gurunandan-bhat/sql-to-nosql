@@ -22,14 +22,15 @@ type Images struct {
 }
 
 type Product struct {
-	IProdID       uint32  `db:"iProdID" json:"iProdID"`
-	IPCatID       uint32  `db:"iPCatID" json:"iPCatID"`
-	CCode         *string `db:"cCode" json:"cCode"`
-	VName         string  `db:"vName" json:"vName"`
-	VCategoryName string  `db:"vCategoryName" json:"vCategoryName"`
-	VURLName      string  `db:"vUrlName" json:"vUrlName"`
-	VShortDesc    *string `db:"vShortDesc" json:"vShortDesc"`
-	VDescription  *string `db:"vDescription" json:"vDescription"`
+	IProdID          uint32  `db:"iProdID" json:"iProdID"`
+	IPCatID          uint32  `db:"iPCatID" json:"iPCatID"`
+	CCode            *string `db:"cCode" json:"cCode"`
+	VName            string  `db:"vName" json:"vName"`
+	VCategoryName    string  `db:"vCategoryName" json:"vCategoryName"`
+	VURLName         string  `db:"vUrlName" json:"vUrlName"`
+	VCategoryURLName string  `db:"vCategoryUrlName" json:"vCategoryUrlName"`
+	VShortDesc       *string `db:"vShortDesc" json:"vShortDesc"`
+	VDescription     *string `db:"vDescription" json:"vDescription"`
 	ProdPrice
 	Images
 	CStatus    *string            `db:"cStatus" json:"cStatus"`
@@ -92,6 +93,7 @@ func (m *Model) Products() ([]Product, error) {
 				p.cCode,
 				p.vName,
 				c.vName vCategoryName,
+				c.vUrlName vCategoryUrlName,
 				p.vUrlName,
 				p.vShortDesc,
 				p.vDescription,

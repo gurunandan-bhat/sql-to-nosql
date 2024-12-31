@@ -52,8 +52,9 @@ func (m *Model) CategoryMaster() (map[uint32]*CategorySummary, error) {
 
 	// Add a root category so top level have parents
 	root := CategorySummary{
-		IPCatID: 0,
-		VName:   "Root Category",
+		IPCatID:  0,
+		VName:    "Root Category",
+		VURLName: "root",
 	}
 	cMap[0] = &root
 
