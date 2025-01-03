@@ -11,9 +11,10 @@ type CategorySummary struct {
 	IParentID  uint32  `db:"iParentID"`
 	VShortDesc *string `db:"vShortDesc"`
 	Images
-	CStatus    string              `db:"cStatus"`
-	Attributes []CategoryAttribute `db:"-"`
-	Children   []*CategorySummary  `db:"-"`
+	CStatus       string              `db:"cStatus"`
+	IProductCount int                 `db:"iProductCount"`
+	Attributes    []CategoryAttribute `db:"-"`
+	Children      []*CategorySummary  `db:"-"`
 }
 
 type CategoryAttribute struct {
@@ -28,18 +29,29 @@ type CategoryAttribute struct {
 func (m *Model) CategoryMaster() (map[uint32]*CategorySummary, error) {
 
 	query := `SELECT
-				iPCatID,
-				vName,
-				vUrlName,
-				iParentID,
-				vShortDesc,
-				vMenuImage vImage,
-				vMenuImage_AltTag vImage_AltTag,
-				COALESCE(cStatus, 'I') cStatus
+				c.iPCatID,
+				c.vName,
+				c.vUrlName,
+				c.iParentID,
+				c.vShortDesc,
+				c.vMenuImage vImage,
+				c.vMenuImage_AltTag vImage_AltTag,
+				COALESCE(c.cStatus, 'I') cStatus,
+				SUM(CASE WHEN p.cStatus = 'A' THEN 1 ELSE 0 END) iProductCount
 			FROM
-				prodcat
+				prodcat c LEFT JOIN
+				product p ON c.iPCatID = p.iPCatID
+			GROUP BY
+				c.iPCatID,
+				c.vName,
+				c.vUrlName,
+				c.iParentID,
+				c.vShortDesc,
+				c.vMenuImage,
+				c.vMenuImage_AltTag,
+				c.cStatus
 			ORDER BY
-				IPCatID`
+				c.iPCatID`
 	var categories []CategorySummary
 	if err := m.Select(&categories, query); err != nil {
 		return nil, err

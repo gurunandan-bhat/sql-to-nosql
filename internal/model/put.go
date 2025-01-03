@@ -25,6 +25,7 @@ type CategoryValue struct {
 	VShortDescription *string
 	MImages           reldb.Images
 	CTypeStatus       string
+	IProductCount     int
 	LAttributes       []reldb.CategoryAttribute
 	LChildren         []*reldb.CategorySummary
 }
@@ -66,11 +67,11 @@ func PutCategory(ctx context.Context, cat reldb.CategorySummary) error {
 		log.Fatalf("error fetching default configuration: %s", err)
 	}
 
-	// client := dynamodb.NewFromConfig(cfg)
+	client := dynamodb.NewFromConfig(cfg)
 
-	client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
-		o.BaseEndpoint = aws.String("https://localhost:4000")
-	})
+	// client := dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+	// 	o.BaseEndpoint = aws.String("https://localhost:4000")
+	// })
 
 	catVal := CategoryValue{
 		PK:                "Category",
@@ -82,6 +83,7 @@ func PutCategory(ctx context.Context, cat reldb.CategorySummary) error {
 		VShortDescription: cat.VShortDesc,
 		MImages:           cat.Images,
 		CTypeStatus:       fmt.Sprintf("C%s", cat.CStatus),
+		IProductCount:     cat.IProductCount,
 		LAttributes:       cat.Attributes,
 		LChildren:         cat.Children,
 	}
@@ -143,6 +145,7 @@ func AddCategoryBatch(ctx context.Context, categories []reldb.CategorySummary, m
 				VShortDescription: category.VShortDesc,
 				MImages:           category.Images,
 				CTypeStatus:       fmt.Sprintf("C%s", category.CStatus),
+				IProductCount:     category.IProductCount,
 				LAttributes:       category.Attributes,
 				LChildren:         category.Children,
 			}
