@@ -3,6 +3,7 @@ package reldb
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/gorilla/schema"
@@ -98,7 +99,11 @@ func (m *Model) SaveProductImages(formValues map[string][]string) (ProductImgFor
 	if err != nil {
 		return ProductImgForm{}, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	if len(newParams) > 0 {
 

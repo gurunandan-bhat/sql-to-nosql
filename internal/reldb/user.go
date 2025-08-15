@@ -2,6 +2,7 @@ package reldb
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -134,7 +135,11 @@ func (m *Model) SaveCookie(userID uint, sessionID, cookieStr string, expires tim
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	_, err = tx.Exec(delQuery, userID)
 	if err != nil {
@@ -144,7 +149,9 @@ func (m *Model) SaveCookie(userID uint, sessionID, cookieStr string, expires tim
 	if err != nil {
 		return err
 	}
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		log.Fatal(err)
+	}
 
 	return nil
 }

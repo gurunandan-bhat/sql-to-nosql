@@ -3,6 +3,7 @@ package reldb
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 )
@@ -73,7 +74,11 @@ func Configuration(configFileName ...string) (*Config, error) {
 		if err != nil {
 			panic(fmt.Sprintf("failed to open config file %s: %s", cfname, err))
 		}
-		defer configFile.Close()
+		defer func() {
+			if err := configFile.Close(); err != nil {
+				log.Fatal(err)
+			}
+		}()
 
 		decoder := json.NewDecoder(configFile)
 		err = decoder.Decode(&c)

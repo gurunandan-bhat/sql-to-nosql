@@ -114,7 +114,7 @@ func (m *Model) Products() ([]Product, error) {
 				JOIN prodcat c ON p.iPCatID = c.iPCatID`
 
 	pp := []Product{}
-	if err := m.DB.Select(&pp, qry); err != nil {
+	if err := m.Select(&pp, qry); err != nil {
 		return nil, fmt.Errorf("error fetching products: %s", err)
 	}
 
