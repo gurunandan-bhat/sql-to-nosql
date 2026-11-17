@@ -18,6 +18,8 @@ var RootCmd = &cobra.Command{
 	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
+var dryRun bool
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
@@ -32,7 +34,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sql-to-nosql.yaml)")
+	RootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "d", true, "dry-run dumps json output and skips saving")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

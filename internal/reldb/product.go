@@ -85,6 +85,45 @@ type dbPCARow struct {
 	ProductAttribute
 }
 
+func (m *Model) Product(iProdID uint32) (Product, error) {
+
+	qry := `SELECT
+				p.iProdID,
+				p.iPCatID,
+				p.cCode,
+				p.vName,
+				c.vName vCategoryName,
+				c.vUrlName vCategoryUrlName,
+				p.vUrlName,
+				p.vShortDesc,
+				p.vDescription,
+				p.fRetailPrice,
+				p.fRetailOPrice,
+				p.fShipping,
+				p.fPrice,
+				p.fOPrice,
+				p.fActualWeight,
+				p.fVolumetricWeight,
+				p.vSmallImage,
+				p.vSmallImage_AltTag,
+				p.vImage,
+				p.vImage_AltTag,
+				COALESCE(p.cStatus, "I") cStatus,
+				p.vYTID
+			FROM product p 
+				JOIN prodcat c ON p.iPCatID = c.iPCatID
+			WHERE 
+				p.iProdID = ?`
+
+	pp := Product{}
+	var err error
+	if err = m.Get(&pp, qry, iProdID); err != nil {
+		return pp, fmt.Errorf("error fetching products: %s", err)
+	}
+
+	return pp, err
+}
+
 func (m *Model) Products() ([]Product, error) {
 
 	qry := `SELECT

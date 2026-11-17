@@ -1,9 +1,6 @@
 package reldb
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -42,16 +39,4 @@ func NewModel(cfg *Config) (*Model, error) {
 	return &Model{
 		dbHandle,
 	}, nil
-}
-
-//lint:ignore U1000 Ignore unused function temporarily for debugging
-func dumpJSON(prefix string, v any) error {
-
-	jsonBytes, err := json.MarshalIndent(v, "", "\t")
-	if err != nil {
-		return fmt.Errorf("error dumping json of type %t: %w", v, err)
-	}
-
-	fmt.Printf("\n\nDumping %s: %s\n\n", prefix, string(jsonBytes))
-	return nil
 }

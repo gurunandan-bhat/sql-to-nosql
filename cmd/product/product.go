@@ -20,11 +20,15 @@ var productCmd = &cobra.Command{
 	Short: "Transfer Mario Products from mysql to dynamodb",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		iProdID, err := cmd.Flags().GetUint32("iProdID")
-		if err != nil {
-			return fmt.Errorf("error parsing argument iProdID %d: %s", iProdID, err)
+		var iProdID uint32
+		if cmd.Flags().Changed("iProdID") {
+			var err error
+			iProdID, err = cmd.Flags().GetUint32("iProdID")
+			if err != nil {
+				return fmt.Errorf("error parsing argument iProdID %d: %s", iProdID, err)
+			}
+			fmt.Println("product called with product id", iProdID)
 		}
-		fmt.Println("product called with product id", iProdID)
 
 		cfg, err := reldb.Configuration()
 		if err != nil {
@@ -36,11 +40,55 @@ var productCmd = &cobra.Command{
 			return fmt.Errorf("error connecting to database: %s", err)
 		}
 
-		showProducts, err := cmd.Flags().GetBool("show-products")
+		products := []reldb.Product{}
+		if iProdID > 0 {
+
+			p, err := relDBH.Product(iProdID)
+			if err != nil {
+				return fmt.Errorf("error fetching product for id %d: %s", iProdID, err)
+			}
+
+			attribs, err := relDBH.ProductAttributes(iProdID, false)
+			if err != nil {
+				return fmt.Errorf("error fetching product attributes for id %d: %s", iProdID, err)
+			}
+
+			skus, err := relDBH.ProductSKUs(iProdID)
+			if err != nil {
+				return fmt.Errorf("error fetching product skus for product %d: %s", iProdID, err)
+			}
+
+			p.Attributes = attribs
+			p.SKUs = skus
+			products[0] = p
+		} else {
+			products, err = relDBH.Products()
+			if err != nil {
+				return fmt.Errorf("error fetching all products: %s", err)
+			}
+
+			for i := range products {
+
+				iProdID := products[i].IProdID
+				attribs, err := relDBH.ProductAttributes(iProdID, false)
+				if err != nil {
+					return fmt.Errorf("error fetching product attributes for %d: %s", iProdID, err)
+				}
+				products[i].Attributes = attribs
+
+				skus, err := relDBH.ProductSKUs(iProdID)
+				if err != nil {
+					return fmt.Errorf("error fetching product skus for product %d: %s", iProdID, err)
+				}
+				products[i].SKUs = skus
+			}
+		}
+
+		dryRun, err := cmd.Flags().GetBool("show-products")
 		if err != nil {
 			return fmt.Errorf("error parsing show-products: %s", err)
 		}
-		if showProducts {
+		if dryRun {
 			products, err := relDBH.Products()
 			if err != nil {
 				return err
@@ -51,62 +99,6 @@ var productCmd = &cobra.Command{
 			}
 			fmt.Println("Products: ", string(jsonProducts))
 			return nil
-		}
-
-		showAttribs, err := cmd.Flags().GetBool("show-attributes")
-		if err != nil {
-			return fmt.Errorf("error parsing show-attributes: %s", err)
-		}
-		if showAttribs {
-			attribs, err := relDBH.ProductAttributes(iProdID, false)
-			if err != nil {
-				return fmt.Errorf("error fetching product attributes for %d: %s", iProdID, err)
-			}
-			jsonAttribs, err := json.MarshalIndent(&attribs, "", "\t")
-			if err != nil {
-				return fmt.Errorf("error marshalling attributes: %s", err)
-			}
-			fmt.Println("Attributes: ", string(jsonAttribs))
-			return nil
-		}
-
-		showSKUs, err := cmd.Flags().GetBool("show-skus")
-		if err != nil {
-			return fmt.Errorf("error parsing show-skus option: %s", err)
-		}
-		if showSKUs {
-			productSKUs, err := relDBH.ProductSKUs(iProdID)
-			if err != nil {
-				return fmt.Errorf("error fetching product skus for product %d: %s", iProdID, err)
-			}
-			jsonBytesAttribs, err := json.MarshalIndent(&productSKUs, "", "\t")
-			if err != nil {
-				return fmt.Errorf("error marshalling product attributes: %s", err)
-			}
-			fmt.Println(
-				"SKUs: ", string(jsonBytesAttribs),
-			)
-		}
-
-		products, err := relDBH.Products()
-		if err != nil {
-			return fmt.Errorf("error fetching all products: %s", err)
-		}
-
-		for i := range products {
-
-			iProdID := products[i].IProdID
-			attribs, err := relDBH.ProductAttributes(iProdID, false)
-			if err != nil {
-				return fmt.Errorf("error fetching product attributes for %d: %s", iProdID, err)
-			}
-			products[i].Attributes = attribs
-
-			skus, err := relDBH.ProductSKUs(iProdID)
-			if err != nil {
-				return fmt.Errorf("error fetching product skus for product %d: %s", iProdID, err)
-			}
-			products[i].SKUs = skus
 		}
 
 		batchSize := 3000
@@ -133,9 +125,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// productCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	productCmd.Flags().Uint32P("iProdID", "i", 0, "Display attributes of product with <id>")
-
-	productCmd.Flags().BoolP("show-products", "p", false, "Dump products")
-	productCmd.Flags().BoolP("show-skus", "s", false, "Dump product SKUs")
-	productCmd.Flags().BoolP("show-attributes", "a", false, "Dump product attributes")
+	productCmd.Flags().Uint32P("iProdID", "i", 0, "Display all details of a single product <id>")
 }
